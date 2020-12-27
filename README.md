@@ -6,7 +6,7 @@ You give an input image and a goal image and the program calculates the best way
 Currently this is just based on the grayscale values of the pixels.
 Then, each pixel is assigned a target coordinate, and the program iterates over each pixel, at each step, the pixel swaps with another in a way that brings it closer to the goal.
 
-This is currently very slow. I optimized it a little bit, but there's still more that could be done such as GPU support.
+This is currently quite slow for larger images. I optimized it a little bit, but there's still more that could be done such as GPU support.
 
 ## Examples
 ![Alt Text](examples/movie_128.gif)
