@@ -9,4 +9,4 @@ Then, each pixel is assigned a target coordinate, and the program iterates over 
 This is currently very slow. I optimized it a little bit, but there's still more that could be done such as GPU support.
 
 ## Examples
-![random_mover](/demo_movies/random_scan_trimmed.mp4)
+[![Random Mover](http://img.youtube.com/vi/Bygzjf0Mrw4/0.jpg)](http://www.youtube.com/watch?v=Bygzjf0Mrw4 "Video Title")
