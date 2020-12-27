@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 import time
 import subprocess
+import math
 
 
 class pixel():
@@ -53,6 +54,9 @@ class pixel():
             return 1
         else:
             return 0
+
+    def distance_to_goal(self):
+        return math.abs(self.row - self.goal[0]) + math.abs(self.col - self.goal[1])
 
     def __repr__(self):
         return str([self.row, self.col, list(self.rgb_array)])
@@ -113,6 +117,7 @@ class image():
         img.load()
         img_array = np.asarray(img, dtype="int32")
         self.dim = len(img_array)
+        self.total_distance = 0
         self.pixels = self._to_pixels(img_array)
         self.dict = pixel_dictionary()
         self.num_at_goal = 0
@@ -158,6 +163,7 @@ class image():
                     self.num_at_goal += 1
                 else:
                     self.active_pixels.append(p)
+                    sef.total_distance += p.distance_to_goal()
         self.random_list = list.copy(self.active_pixels)
         random.shuffle(self.random_list)
 
@@ -247,8 +253,10 @@ class image():
         random.shuffle(self.random_list)
         for pixel in self.random_list:
             self.pixel_step(pixel, step_size)
-            if self.num_at_goal == self.dim ** 2:
-                return 0
+        return (self.dim ** 2) - self.num_at_goal
+
+    def adaptive_step_size(self, it, rate):
+        return int(it / (1000 / rate)) + 1
 
     def step(self, step_size=1):
         """Perform one step towards the goal for a single random pixel"""
@@ -321,9 +329,6 @@ class image():
         if self.num_at_goal == self.dim ** 2:
             return 0
 
-def adaptive_step(self, it, rate):
-    return int(it / (1000 / rate)) + 1
-
 
 def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=False, active=False, point=False):
     i = image(path=initial_path, goal_path=goal_path, smart_search=smart_search)
@@ -333,18 +338,17 @@ def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=
     t1 = time.time()
     time_remaining = '???'
     remaining_points = 1
-    past_remaining_points = 0 #The value of remaining_points from the past iteration
-    stalled = 0 #The number of interations without making an improvement
+    stalled = 0
 
     #Adaptive Step
-    if step_size = 0:
-        step_size = self.adaptive_step(it, adaptation_rate)
+    if step_size == 0:
+        step_size = i.adaptive_step_size(it, adaptation_rate)
     
     while remaining_points != 0:
         if active and scan:
             remaining_points = i.active_scan(step_size)
         elif random_scan:
-            remaining_points = i.random_scan(step_size + int(it / 200))
+            remaining_points = i.random_scan(step_size)
         elif scan:
             remaining_points = i.scan_step(step_size)
         elif active:
@@ -363,15 +367,16 @@ def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=
                 time_elapsed / (i.num_at_goal/(i.dim ** 2)) - time_elapsed))
 
         #Check if stalled
-        if remaining_points >= past_remaining_points:
-            stalled += 1
-        else:
-            stalled = 0
-        if stalled > 5:
-            print("Stopping early") 
-            break
+        # if remaining_points < min_remaining_points:
+        #     min_remaining_points = remaining_points
+        #     stalled = 0
+        # else:
+        #     stalled += 1
+        # if stalled > 20:
+        #     print("Stopping early") 
+        #     break
 
-        past_remaining_points = remaining_points
+        # past_remaining_points = remaining_points
 
     #Actions to execute on convergence    
     t2 = time.time()
@@ -381,9 +386,9 @@ def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=
 
 
 if __name__ == "__main__":
-    initial_path = 'images/winter_512.png'
-    goal_path = 'images/wave_512.png'
-    adaptation_rate = 4  #Updates step size every 1000/adaptation_rate frames. 
+    initial_path = 'images/winter_128.png'
+    goal_path = 'images/wave_128.png'
+    adaptation_rate = 2  #Updates step size every 1000/adaptation_rate frames. 
     step_size = 0  #0 for adaptive step size. Boosts speed for larger images. Step size will start small and increase as iterations progress.
     save_step = 1 #Save an image every _ frames
     smart_search = False
