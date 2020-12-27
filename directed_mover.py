@@ -2,6 +2,7 @@ import random
 import numpy as np
 from PIL import Image
 import time
+import subprocess
 
 
 class pixel():
@@ -32,15 +33,16 @@ class pixel():
     def get_step_goal(self, step_size=1):
         step_row = self.row
         step_col = self.col
-        if self.goal[0] >= self.row + step_size:
+        if self.goal[0] > self.row + step_size:
             step_row += step_size
-        elif self.goal[0] <= self.row - step_size:
+        elif self.goal[0] < self.row - step_size:
             step_row -= step_size
         else:
             step_row = self.goal[0]
-        if self.goal[1] >= self.col + step_size:
+            
+        if self.goal[1] > self.col + step_size:
             step_col += step_size
-        elif self.goal[1] <= self.col - step_size:
+        elif self.goal[1] < self.col - step_size:
             step_col -= step_size
         else:
             step_col = self.goal[1]
@@ -229,23 +231,27 @@ class image():
         img = Image.fromarray(self._to_array().astype('uint8'), 'RGB')
         img.save('output/' + name + '.png')
 
+    def pixel_step(self, pixel, step_size):
+        """For the input pixel, make a step towards the goal"""
+        if pixel.at_goal():
+            return None
+        target = pixel.get_step_goal(step_size)
+        target_pixel = self.get_pixel(target[0], target[1])
+        num_perfect = pixel.at_goal() + target_pixel.at_goal()
+        self.swap(pixel, target_pixel)
+        post_swap_num_perfect = pixel.at_goal() + target_pixel.at_goal()
+        self.num_at_goal += post_swap_num_perfect - num_perfect
+
     def random_scan(self, step_size=1):
-        """Perform one step towards the goal for each pixel in the image"""
+        """Perform one step towards the goal for each pixel in the image in a random order"""
         random.shuffle(self.random_list)
         for pixel in self.random_list:
-            if pixel.at_goal():
-                    continue
-            target = pixel.get_step_goal(step_size)
-            target_pixel = self.get_pixel(target[0], target[1])
-            num_perfect = pixel.at_goal() + target_pixel.at_goal()
-            self.swap(pixel, target_pixel)
-            post_swap_num_perfect = pixel.at_goal() + target_pixel.at_goal()
-            self.num_at_goal += post_swap_num_perfect - num_perfect
+            self.pixel_step(pixel, step_size)
             if self.num_at_goal == self.dim ** 2:
                 return 0
 
     def step(self, step_size=1):
-        """Perform one step towards the goal"""
+        """Perform one step towards the goal for a single random pixel"""
         pixel = self.get_random_pixel()
 
         """This makes it so iterations near convergence won't make no progress
@@ -271,14 +277,7 @@ class image():
             for c in range(self.dim):
                 # Change to r,c for vertical lines
                 pixel = self.get_pixel(r,c)
-                if pixel.at_goal():
-                    continue
-                target = pixel.get_step_goal(step_size)
-                target_pixel = self.get_pixel(target[0], target[1])
-                num_perfect = pixel.at_goal() + target_pixel.at_goal()
-                self.swap(pixel, target_pixel)
-                post_swap_num_perfect = pixel.at_goal() + target_pixel.at_goal()
-                self.num_at_goal += post_swap_num_perfect - num_perfect
+                pixel_step(pixel, step_size)
                 if self.num_at_goal == self.dim ** 2:
                     return 0
 
@@ -322,6 +321,10 @@ class image():
         if self.num_at_goal == self.dim ** 2:
             return 0
 
+def adaptive_step(self, it, rate):
+    return int(it / (1000 / rate)) + 1
+
+
 def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=False, active=False, point=False):
     i = image(path=initial_path, goal_path=goal_path, smart_search=smart_search)
     i.save('00000')
@@ -329,11 +332,19 @@ def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=
     it = 0
     t1 = time.time()
     time_remaining = '???'
-    while True:
+    remaining_points = 1
+    past_remaining_points = 0 #The value of remaining_points from the past iteration
+    stalled = 0 #The number of interations without making an improvement
+
+    #Adaptive Step
+    if step_size = 0:
+        step_size = self.adaptive_step(it, adaptation_rate)
+    
+    while remaining_points != 0:
         if active and scan:
             remaining_points = i.active_scan(step_size)
         elif random_scan:
-            remaining_points = i.random_scan(step_size)
+            remaining_points = i.random_scan(step_size + int(it / 200))
         elif scan:
             remaining_points = i.scan_step(step_size)
         elif active:
@@ -341,42 +352,52 @@ def main(initial_path, goal_path, step_size, save_step, smart_search=True, scan=
         else:
             remaining_points = i.step(step_size)
         it += 1
-        print("Iteration:", it, "Progress %:", round(100 * i.num_at_goal/(i.dim ** 2), 1),
-            "Time Remaining:", time_remaining, end='\r')
+        print("Iteration:", it, "Pixels Remaining:", remaining_points, "Progress %:", round(100 * i.num_at_goal/(i.dim ** 2), 1),
+            "Estimated Time Remaining:", time_remaining, end='\r')
 
         # Actions to execute on save step
         if it % save_step == 0:
             i.save(str(int(it/save_step)).zfill(5))
-            if i.num_at_goal > 0:
-                time_elapsed = time.time() - t1
-                time_remaining = time.strftime('%H:%M:%S', time.gmtime(
-                    time_elapsed / (i.num_at_goal/(i.dim ** 2)) - time_elapsed)) 
+            time_elapsed = time.time() - t1
+            time_remaining = time.strftime('%H:%M:%S', time.gmtime(
+                time_elapsed / (i.num_at_goal/(i.dim ** 2)) - time_elapsed))
 
-        #Actions to execute on convergence    
-        if remaining_points == 0:
-            t2 = time.time()
-            print("\nFinished in", time.strftime(
-                '%H:%M:%S', time.gmtime(t2-t1)))
-            i.save(str(int(it/save_step)).zfill(5))
-            break   
+        #Check if stalled
+        if remaining_points >= past_remaining_points:
+            stalled += 1
+        else:
+            stalled = 0
+        if stalled > 5:
+            print("Stopping early") 
+            break
+
+        past_remaining_points = remaining_points
+
+    #Actions to execute on convergence    
+    t2 = time.time()
+    print("\nFinished in", time.strftime(
+        '%H:%M:%S', time.gmtime(t2-t1)))
+    i.save(str(int(it/save_step)).zfill(5))
 
 
 if __name__ == "__main__":
-    initial_path = 'images/winter2_512.png'
+    initial_path = 'images/winter_512.png'
     goal_path = 'images/wave_512.png'
-    step_size = 1
-    save_step = 1
+    adaptation_rate = 4  #Updates step size every 1000/adaptation_rate frames. 
+    step_size = 0  #0 for adaptive step size. Boosts speed for larger images. Step size will start small and increase as iterations progress.
+    save_step = 1 #Save an image every _ frames
     smart_search = False
-    random_scan = True
-    scan = False
+    random_scan = True #Move pixels in a random order
+    scan = False #Move pixels by scanning across the image. Faster, but gives a different effect.
     active = False
     main(initial_path, goal_path, step_size, save_step, smart_search, scan, active, random_scan)
     try:
-        subprocess.call("ffmpeg -r 10 -f image2 -s 1920x1080 -i %05d.png -vcodec libx264 -crf 25 -pix_fmt yuv420p movie.mp4", shell=True)
+        subprocess.run("ffmpeg -r 30 -f image2 -s 1920x1080 -i output/%05d.png -vcodec libx264 -crf 25 -pix_fmt yuv420p output/movie.mp4", shell=True)
     except:
         print("Rendering frames into movie failed. Check that you have ffmpeg installed")
-        print("Try manually running the command from the output folder: ffmpeg -r 10 -f image2 -s 1920x1080 -i %05d.png -vcodec libx264 -crf 25 -pix_fmt yuv420p movie.mp4")
+        print("Try manually running the command from the output folder: ffmpeg -r 30 -f image2 -s 1920x1080 -i %05d.png -vcodec libx264 -crf 25 -pix_fmt yuv420p movie.mp4")
 
 # IDeas:
 # It can be like diffusion. Reaching energy minima. Compute a potential energy surface based on the pixel darknesses in the goal
 # Then you can do something like gradient descent for each pixel to find its minima
+# Check if a pixel is where it started last time
