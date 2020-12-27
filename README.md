@@ -9,4 +9,4 @@ Then, each pixel is assigned a target coordinate, and the program iterates over 
 This is currently very slow. I optimized it a little bit, but there's still more that could be done such as GPU support.
 
 ## Examples
-![Alt Text](examples/movie.gif)
+![Alt Text](examples/movie_128.gif)
