@@ -3,7 +3,6 @@ import numpy as np
 from PIL import Image
 import time
 import subprocess
-import math
 
 
 class pixel():
@@ -56,7 +55,7 @@ class pixel():
             return 0
 
     def distance_to_goal(self):
-        return math.abs(self.row - self.goal[0]) + math.abs(self.col - self.goal[1])
+        return abs(self.row - self.goal[0]) + abs(self.col - self.goal[1])
 
     def __repr__(self):
         return str([self.row, self.col, list(self.rgb_array)])
@@ -163,9 +162,10 @@ class image():
                     self.num_at_goal += 1
                 else:
                     self.active_pixels.append(p)
-                    sef.total_distance += p.distance_to_goal()
+                    self.total_distance += p.distance_to_goal()
         self.random_list = list.copy(self.active_pixels)
         random.shuffle(self.random_list)
+
 
     def _to_pixels(self, array):
         """Converts array of rgb tupes to array of pixel objects"""
@@ -250,9 +250,16 @@ class image():
 
     def random_scan(self, step_size=1):
         """Perform one step towards the goal for each pixel in the image in a random order"""
-        random.shuffle(self.random_list)
-        for pixel in self.random_list:
-            self.pixel_step(pixel, step_size)
+        new_total_distance = self.total_distance
+        while new_total_distance >= self.total_distance:
+            new_total_distance = 0
+            random.shuffle(self.random_list)
+            for pixel in self.random_list:
+                self.pixel_step(pixel, step_size)
+                new_total_distance += pixel.distance_to_goal()
+            with open('output.csv', 'a') as f:
+                f.write(str(new_total_distance) + ',')
+        self.total_distance = new_total_distance
         return (self.dim ** 2) - self.num_at_goal
 
     def adaptive_step_size(self, it, rate):
@@ -389,7 +396,7 @@ if __name__ == "__main__":
     initial_path = 'images/winter_128.png'
     goal_path = 'images/wave_128.png'
     adaptation_rate = 2  #Updates step size every 1000/adaptation_rate frames. 
-    step_size = 0  #0 for adaptive step size. Boosts speed for larger images. Step size will start small and increase as iterations progress.
+    step_size = 1  #0 for adaptive step size. Boosts speed for larger images. Step size will start small and increase as iterations progress.
     save_step = 1 #Save an image every _ frames
     smart_search = False
     random_scan = True #Move pixels in a random order
